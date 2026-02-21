@@ -35,6 +35,7 @@ from scraper.wwr_scraper import WWRscraper
 from scraper.hackernews_scraper import HackerNewsScraper
 from cleaning.clean_jobs import clean_jobs
 from services.job_repository import upsert_jobs
+from embeddings.embedding_service import run_embedding_pipeline
 
 # ── configuration ────────────────────────────────────────────────────
 CSV_PATH = Path("cleaned_jobs.csv")
@@ -130,6 +131,13 @@ def fetch_and_save() -> None:
         log.info("DB upsert summary: %s", summary)
     except Exception as exc:
         log.error("DB upsert failed (continuing with CSV fallback): %s", exc)
+
+    # 2c. Generate embeddings for any newly inserted rows
+    try:
+        emb_summary = run_embedding_pipeline()
+        log.info("Embedding summary: %s", emb_summary)
+    except Exception as exc:
+        log.error("Embedding pipeline failed (continuing): %s", exc)
 
     # 3. Load existing
     df_existing = _load_existing(CSV_PATH)

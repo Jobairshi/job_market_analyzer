@@ -8,6 +8,7 @@ from cleaning.clean_jobs import clean_jobs
 from cleaning.utils import save_to_csv
 from visualization.visualize_jobs import run_all_visualizations
 from services.job_repository import upsert_jobs
+from embeddings.embedding_service import run_embedding_pipeline
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +62,18 @@ if __name__ == "__main__":
         log.info("DB upsert summary: %s", summary)
     except Exception as e:
         log.error("DB upsert failed (continuing without DB): %s", e)
+
+    # --- Generate & store embeddings ---
+    try:
+        emb_summary = run_embedding_pipeline()
+        print(
+            f"\nEmbedding summary:"
+            f"  Fetched {emb_summary['fetched']} jobs | "
+            f"Generated {emb_summary['generated']} embeddings | "
+            f"Stored {emb_summary['stored']}"
+        )
+    except Exception as e:
+        log.error("Embedding pipeline failed (continuing): %s", e)
 
     # --- Visualize ---
     run_all_visualizations(df_clean)
