@@ -81,7 +81,7 @@ def clean_jobs(df: pd.DataFrame) -> pd.DataFrame:
     # 3. Fill missing / blank locations
     # ------------------------------------------------------------------ #
     df["location"] = df["location"].replace({"": "remote", "nan": "remote"})
-    df["location"].fillna("remote", inplace=True)
+    df["location"] = df["location"].fillna("remote")
 
     # ------------------------------------------------------------------ #
     # 4. Parse the raw skills field into a clean list

@@ -1,4 +1,5 @@
 import sys
+import logging
 import pandas as pd
 from scraper.remoteok_scraper import RemoteOKScraper
 from scraper.wwr_scraper import WWRscraper
@@ -6,6 +7,14 @@ from scraper.hackernews_scraper import HackerNewsScraper
 from cleaning.clean_jobs import clean_jobs
 from cleaning.utils import save_to_csv
 from visualization.visualize_jobs import run_all_visualizations
+from services.job_repository import upsert_jobs
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  [%(levelname)s]  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("main")
 
 
 def run_all_scrapers():
@@ -44,6 +53,14 @@ if __name__ == "__main__":
 
     # --- Save cleaned output ---
     save_to_csv(df_clean, "cleaned_jobs.csv")
+
+    # --- Store in Supabase ---
+    try:
+        jobs_list = df_clean.to_dict(orient="records")
+        summary = upsert_jobs(jobs_list)
+        log.info("DB upsert summary: %s", summary)
+    except Exception as e:
+        log.error("DB upsert failed (continuing without DB): %s", e)
 
     # --- Visualize ---
     run_all_visualizations(df_clean)

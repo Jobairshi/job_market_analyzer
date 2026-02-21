@@ -34,6 +34,7 @@ from scraper.remoteok_scraper import RemoteOKScraper
 from scraper.wwr_scraper import WWRscraper
 from scraper.hackernews_scraper import HackerNewsScraper
 from cleaning.clean_jobs import clean_jobs
+from services.job_repository import upsert_jobs
 
 # ── configuration ────────────────────────────────────────────────────
 CSV_PATH = Path("cleaned_jobs.csv")
@@ -121,6 +122,14 @@ def fetch_and_save() -> None:
     # 2. Clean
     df_new_clean = clean_jobs(df_new)
     log.info("After cleaning: %d jobs", len(df_new_clean))
+
+    # 2b. Upsert to Supabase (dedup handled by DB via unique link)
+    try:
+        jobs_list = df_new_clean.to_dict(orient="records")
+        summary = upsert_jobs(jobs_list)
+        log.info("DB upsert summary: %s", summary)
+    except Exception as exc:
+        log.error("DB upsert failed (continuing with CSV fallback): %s", exc)
 
     # 3. Load existing
     df_existing = _load_existing(CSV_PATH)
