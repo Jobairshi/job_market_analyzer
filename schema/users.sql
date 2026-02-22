@@ -13,3 +13,4 @@ create table if not exists users (
 
 -- Index for fast email lookups during login
 create index if not exists idx_users_email on users (email);
+∑
