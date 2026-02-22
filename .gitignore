@@ -1,25 +1,41 @@
-# ── Python ──
+# ── Python (ai_engine) ──
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
 *.egg
-
-# ── Virtual environment ──
 venv/
 .venv/
 
-# ── Secrets ──
-.env
+# ── Node.js (backend / frontend) ──
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
 
-# ── IDE ──
-.vscode/
-.idea/
+# ── Logs ──
+*.log
+.backend.log
+.frontend.log
+npm-debug.log*
+
+# ── Environment / Secrets ──
+.env
+.env.local
+.env.*.local
 
 # ── OS ──
 .DS_Store
 Thumbs.db
 
+# ── IDE ──
+.vscode/
+.idea/
+
 # ── Visualization outputs ──
-visualization/output/
+ai_engine/visualization/output/
+
+# ── Runtime ──
+.run_pids
