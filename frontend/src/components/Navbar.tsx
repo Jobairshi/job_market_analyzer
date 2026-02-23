@@ -19,6 +19,21 @@ export default function Navbar() {
           <Link href="/jobs" className="text-gray-600 hover:text-indigo-600 transition">
             Jobs
           </Link>
+          <Link href="/dashboard" className="text-gray-600 hover:text-indigo-600 transition">
+            Dashboard
+          </Link>
+          <Link href="/resume" className="text-gray-600 hover:text-indigo-600 transition">
+            Resume Match
+          </Link>
+          <Link href="/ai" className="text-gray-600 hover:text-indigo-600 transition">
+            AI Chat
+          </Link>
+          <Link href="/recommend" className="text-gray-600 hover:text-indigo-600 transition">
+            Recommend
+          </Link>
+          <Link href="/skill-gap" className="text-gray-600 hover:text-indigo-600 transition">
+            Skill Gap
+          </Link>
 
           {user ? (
             <>

@@ -82,6 +82,7 @@ free_port() {
 
 free_port 3000
 free_port 4000
+free_port 8000
 
 # Trap to clean up background processes on exit (Ctrl+C, etc.)
 cleanup() {
@@ -125,7 +126,31 @@ if [[ "${1:-}" == "--scrape" || "${1:-}" == "--all" ]]; then
   run_scraper
 fi
 
-# ── 2. Backend (NestJS) ─────────────────────────────────────────────
+# ── 2. AI Engine API (FastAPI on port 8000) ──────────────────────────
+echo -e "${CYAN}━━━ AI Engine API (FastAPI on port 8000) ━━━${NC}"
+AI_DIR="$ROOT_DIR/ai_engine"
+
+if [[ ! -d "$AI_DIR/venv" ]]; then
+  warn "Virtual environment not found. Creating one..."
+  python3 -m venv "$AI_DIR/venv"
+  source "$AI_DIR/venv/bin/activate"
+  pip install --quiet --upgrade pip
+  pip install --quiet pandas python-dotenv requests beautifulsoup4 supabase sentence-transformers plotly pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core
+  log "Virtual environment created & dependencies installed."
+else
+  source "$AI_DIR/venv/bin/activate"
+fi
+
+# Ensure new deps are installed
+pip install --quiet pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core 2>/dev/null || true
+
+(cd "$AI_DIR" && "$AI_DIR/venv/bin/uvicorn" api:app --host 0.0.0.0 --port 8000 > "$ROOT_DIR/.aiengine.log" 2>&1) &
+AI_API_PID=$!
+echo "$AI_API_PID" >> "$PID_FILE"
+log "AI Engine API started (PID $AI_API_PID) — logs: .aiengine.log"
+deactivate 2>/dev/null || true
+
+# ── 3. Backend (NestJS) ─────────────────────────────────────────────
 echo -e "${CYAN}━━━ Backend (NestJS on port 4000) ━━━${NC}"
 BACKEND_DIR="$ROOT_DIR/backend"
 
@@ -140,7 +165,7 @@ BACKEND_PID=$!
 echo "$BACKEND_PID" >> "$PID_FILE"
 log "Backend started (PID $BACKEND_PID) — logs: .backend.log"
 
-# ── 3. Frontend (Next.js) ───────────────────────────────────────────
+# ── 4. Frontend (Next.js) ───────────────────────────────────────────
 echo -e "${CYAN}━━━ Frontend (Next.js on port 3000) ━━━${NC}"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 
@@ -160,12 +185,13 @@ echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║  All services are running!                   ║${NC}"
 echo -e "${GREEN}║                                              ║${NC}"
-echo -e "${GREEN}║  Frontend  → http://localhost:3000            ║${NC}"
-echo -e "${GREEN}║  Backend   → http://localhost:4000/api        ║${NC}"
+echo -e "${GREEN}║  Frontend   → http://localhost:3000           ║${NC}"
+echo -e "${GREEN}║  Backend    → http://localhost:4000/api       ║${NC}"
+echo -e "${GREEN}║  AI Engine  → http://localhost:8000           ║${NC}"
 echo -e "${GREEN}║                                              ║${NC}"
 echo -e "${GREEN}║  Press Ctrl+C to stop all services           ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
 # ── Tail logs ────────────────────────────────────────────────────────
-tail -f "$ROOT_DIR/.backend.log" "$ROOT_DIR/.frontend.log"
+tail -f "$ROOT_DIR/.backend.log" "$ROOT_DIR/.frontend.log" "$ROOT_DIR/.aiengine.log"

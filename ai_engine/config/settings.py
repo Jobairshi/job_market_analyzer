@@ -22,6 +22,12 @@ load_dotenv(_ENV_PATH)
 class Settings:
     supabase_url: str
     supabase_service_role_key: str
+    # Azure OpenAI
+    azure_openai_api_key: str = ""
+    azure_openai_endpoint: str = ""
+    azure_openai_api_version: str = "2025-01-01-preview"
+    azure_deployment_name: str = "gpt-4o"
+    # Embeddings
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_dim: int = 384
     embedding_batch_size: int = 100   # jobs fetched + embedded per cycle
@@ -41,4 +47,8 @@ def _require(name: str) -> str:
 settings = Settings(
     supabase_url=_require("SUPABASE_URL"),
     supabase_service_role_key=_require("SUPABASE_SERVICE_ROLE_KEY"),
+    azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY", ""),
+    azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview"),
+    azure_deployment_name=os.getenv("AZURE_DEPLOYMENT_NAME", "gpt-4o"),
 )

@@ -64,6 +64,107 @@ export const api = {
 
   getSources: () => request<string[]>('/jobs/sources'),
   getTopSkills: () => request<{ skill: string; count: number }[]>('/jobs/skills'),
+
+  /* ── Analytics ───────────────────────────────────────── */
+
+  getAnalyticsSummary: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<AnalyticsSummary>(`/analytics/summary?${qs.toString()}`);
+  },
+
+  getSkillsTrend: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<SkillTrendItem[]>(`/analytics/skills-trend?${qs.toString()}`);
+  },
+
+  getCompanyDemand: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<CompanyDemandItem[]>(`/analytics/company-demand?${qs.toString()}`);
+  },
+
+  getLocationDistribution: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<LocationDistItem[]>(`/analytics/location-distribution?${qs.toString()}`);
+  },
+
+  getJobsOverTime: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<JobsOverTimeItem[]>(`/analytics/jobs-over-time?${qs.toString()}`);
+  },
+
+  getSkillClusters: (params?: Record<string, string>) => {
+    const qs = new URLSearchParams(params);
+    return request<SkillClusterData>(`/analytics/skill-clusters?${qs.toString()}`);
+  },
+
+  /* ── Resume Matching ─────────────────────────────────── */
+
+  uploadResume: async (file: File, topK = 10): Promise<ResumeMatchResponse> => {
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API}/resume/upload?top_k=${topK}`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || body.detail || `Upload failed: ${res.status}`);
+    }
+
+    return res.json() as Promise<ResumeMatchResponse>;
+  },
+
+  /* ── AI Intelligence ─────────────────────────────────── */
+
+  aiQuery: (query: string) =>
+    request<AIQueryResponse>('/ai/query', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    }),
+
+  aiRecommend: (body: {
+    resume_text?: string;
+    preferred_skills?: string[];
+    preferred_location?: string;
+    top_k?: number;
+  }) =>
+    request<AIRecommendResponse>('/ai/recommend', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  aiResumeMatch: async (file: File, topK = 5, explain = true): Promise<AIResumeMatchResponse> => {
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(
+      `${API}/ai/resume-match?top_k=${topK}&explain=${explain}`,
+      { method: 'POST', headers, body: form },
+    );
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || body.detail || `Upload failed: ${res.status}`);
+    }
+    return res.json() as Promise<AIResumeMatchResponse>;
+  },
+
+  aiSkillGap: (resumeText: string, jobDescription: string) =>
+    request<AISkillGapResponse>('/ai/skill-gap', {
+      method: 'POST',
+      body: JSON.stringify({ resume_text: resumeText, job_description: jobDescription }),
+    }),
 };
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -79,4 +180,125 @@ export interface Job {
   link: string;
   description: string | null;
   scraped_at: string;
+}
+
+/* ── Analytics types ───────────────────────────────────── */
+
+export interface AnalyticsSummary {
+  totalJobs: number;
+  jobsLast24h: number;
+  remotePercentage: number;
+  topCompany: string;
+  topSkill: string;
+}
+
+export interface SkillTrendItem {
+  skill: string;
+  count: number;
+}
+
+export interface CompanyDemandItem {
+  company: string;
+  count: number;
+}
+
+export interface LocationDistItem {
+  location: string;
+  count: number;
+}
+
+export interface JobsOverTimeItem {
+  date: string;
+  count: number;
+}
+
+export interface ClusterNode {
+  id: string;
+  count: number;
+  group: number;
+}
+
+export interface ClusterLink {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface SkillClusterData {
+  nodes: ClusterNode[];
+  links: ClusterLink[];
+}
+
+/* ── Resume matching types ─────────────────────────────── */
+
+export interface MatchedJob {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  link: string;
+  cleaned_tags: string[];
+  similarity: number;      // 0–100
+  skill_overlap: number;   // 0–100
+  final_score: number;     // 0–100
+  matched_skills: string[];
+}
+
+export interface ResumeMatchResponse {
+  matches: MatchedJob[];
+  total: number;
+  resume_filename: string;
+}
+
+/* ── AI Intelligence types ─────────────────────────────── */
+
+export interface AIQueryResponse {
+  summary: string;
+  top_skills: string[];
+  top_companies: string[];
+  insight: string;
+}
+
+export interface AIRecommendResponse {
+  recommendations: Array<{
+    id: string;
+    title: string;
+    company: string;
+    location: string;
+    link: string;
+    cleaned_tags: string[];
+    semantic_similarity: number;
+    skill_overlap: number;
+    preference_match: number;
+    final_score: number;
+    matched_skills: string[];
+  }>;
+  total: number;
+}
+
+export interface MatchExplanation {
+  job_title: string;
+  match_score: number;
+  why_match: string;
+  missing_skills: string[];
+  improvement_suggestions: string[];
+}
+
+export interface AIResumeMatchResponse {
+  matches: Array<MatchedJob & { explanation?: MatchExplanation | null }>;
+  total: number;
+  resume_filename: string;
+  ai_explained: boolean;
+}
+
+export interface LearningPathItem {
+  skill: string;
+  resource: string;
+  type: 'course' | 'tool' | 'certification';
+}
+
+export interface AISkillGapResponse {
+  missing_skills: string[];
+  learning_path: LearningPathItem[];
+  summary: string;
 }
