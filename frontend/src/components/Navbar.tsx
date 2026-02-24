@@ -34,6 +34,9 @@ export default function Navbar() {
           <Link href="/skill-gap" className="text-gray-600 hover:text-indigo-600 transition">
             Skill Gap
           </Link>
+          <Link href="/map" className="text-gray-600 hover:text-indigo-600 transition">
+            Map
+          </Link>
 
           {user ? (
             <>

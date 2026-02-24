@@ -25,6 +25,7 @@ from tenacity import (
 )
 
 from db.supabase_client import get_client
+from services.geocoder import geocode_location
 
 log = logging.getLogger("job_repository")
 
@@ -94,6 +95,17 @@ def _prepare_records(jobs: list[dict]) -> list[dict[str, Any]]:
         # Optional description column (may not exist in every scraper)
         record["description"] = _sanitize(job.get("description", None))
         record["scraped_at"] = now
+
+        # ── Geocode location ─────────────────────────────────────
+        location_text = record.get("location") or ""
+        coords = geocode_location(location_text)
+        if coords:
+            record["latitude"] = coords[0]
+            record["longitude"] = coords[1]
+        else:
+            record["latitude"] = None
+            record["longitude"] = None
+
         records.append(record)
 
     return records

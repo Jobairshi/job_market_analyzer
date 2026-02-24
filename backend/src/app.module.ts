@@ -7,6 +7,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ResumeModule } from './resume/resume.module';
 import { AIModule } from './ai/ai.module';
+import { GeoModule } from './geo/geo.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AIModule } from './ai/ai.module';
     AnalyticsModule,
     ResumeModule,
     AIModule,
+    GeoModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

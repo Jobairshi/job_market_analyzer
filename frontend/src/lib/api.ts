@@ -165,6 +165,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ resume_text: resumeText, job_description: jobDescription }),
     }),
+
+  /* ── Geo ──────────────────────────────────────────────── */
+
+  geoNearby: (lat: number, lng: number, radius = 50000, page = 1, limit = 20) =>
+    request<GeoNearbyResponse>(
+      `/geo/nearby?lat=${lat}&lng=${lng}&radius=${radius}&page=${page}&limit=${limit}`,
+    ),
+
+  geoAll: () => request<GeoAllResponse>('/geo/all'),
+
+  geoStats: () => request<GeoStatsResponse>('/geo/stats'),
 };
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -175,6 +186,8 @@ export interface Job {
   title: string;
   company: string | null;
   location: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   tags: string[];
   cleaned_tags: string[];
   link: string;
@@ -301,4 +314,46 @@ export interface AISkillGapResponse {
   missing_skills: string[];
   learning_path: LearningPathItem[];
   summary: string;
+}
+
+/* ── Geo types ─────────────────────────────────────────── */
+
+export interface GeoJob {
+  id: string;
+  title: string;
+  company: string | null;
+  location: string | null;
+  latitude: number;
+  longitude: number;
+  tags?: string[];
+  cleaned_tags?: string[];
+  link: string;
+  scraped_at: string;
+}
+
+export interface GeoNearbyResponse {
+  data: GeoJob[];
+  total: number;
+  page: number;
+  limit: number;
+  center: { lat: number; lng: number };
+  radius: number;
+  fallback?: boolean;
+}
+
+export interface GeoAllResponse {
+  data: GeoJob[];
+  total: number;
+}
+
+export interface GeoStatsItem {
+  location: string;
+  lat: number;
+  lng: number;
+  count: number;
+}
+
+export interface GeoStatsResponse {
+  data: GeoStatsItem[];
+  total: number;
 }
