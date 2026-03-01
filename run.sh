@@ -104,6 +104,12 @@ run_scraper() {
   echo -e "${CYAN}━━━ AI Engine (Python scraper) ━━━${NC}"
   AI_DIR="$ROOT_DIR/ai_engine"
 
+  # Validate existing venv — recreate if stale/moved
+  if [[ -d "$AI_DIR/venv" ]] && ! "$AI_DIR/venv/bin/python" -c "" 2>/dev/null; then
+    warn "Stale virtual environment detected. Recreating..."
+    rm -rf "$AI_DIR/venv"
+  fi
+
   if [[ ! -d "$AI_DIR/venv" ]]; then
     warn "Virtual environment not found. Creating one..."
     python3 -m venv "$AI_DIR/venv"
@@ -130,24 +136,37 @@ fi
 echo -e "${CYAN}━━━ AI Engine API (FastAPI on port 8000) ━━━${NC}"
 AI_DIR="$ROOT_DIR/ai_engine"
 
+# Validate existing venv — recreate if stale/moved (python binary won't resolve)
+if [[ -d "$AI_DIR/venv" ]] && ! "$AI_DIR/venv/bin/python" -c "" 2>/dev/null; then
+  warn "Stale virtual environment detected (project may have moved). Recreating..."
+  rm -rf "$AI_DIR/venv"
+fi
+
 if [[ ! -d "$AI_DIR/venv" ]]; then
   warn "Virtual environment not found. Creating one..."
   python3 -m venv "$AI_DIR/venv"
   source "$AI_DIR/venv/bin/activate"
   pip install --quiet --upgrade pip
-  pip install --quiet pandas python-dotenv requests beautifulsoup4 supabase sentence-transformers plotly pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core
+  pip install --quiet pandas python-dotenv requests beautifulsoup4 supabase sentence-transformers plotly pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core schedule scikit-learn lxml
   log "Virtual environment created & dependencies installed."
 else
   source "$AI_DIR/venv/bin/activate"
 fi
 
 # Ensure new deps are installed
-pip install --quiet pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core 2>/dev/null || true
+pip install --quiet pdfplumber fastapi uvicorn numpy python-multipart langchain-openai langchain-core schedule scikit-learn 2>/dev/null || true
 
 (cd "$AI_DIR" && "$AI_DIR/venv/bin/uvicorn" api:app --host 0.0.0.0 --port 8000 > "$ROOT_DIR/.aiengine.log" 2>&1) &
 AI_API_PID=$!
 echo "$AI_API_PID" >> "$PID_FILE"
 log "AI Engine API started (PID $AI_API_PID) — logs: .aiengine.log"
+
+# ── 2b. Cron Job Scheduler ───────────────────────────────────────────
+echo -e "${CYAN}━━━ Cron Job Scheduler (every 15 min) ━━━${NC}"
+(cd "$AI_DIR" && "$AI_DIR/venv/bin/python" -m scheduler.cron_job > "$ROOT_DIR/.cronjob.log" 2>&1) &
+CRON_PID=$!
+echo "$CRON_PID" >> "$PID_FILE"
+log "Cron job scheduler started (PID $CRON_PID) — logs: .cronjob.log"
 deactivate 2>/dev/null || true
 
 # ── 3. Backend (NestJS) ─────────────────────────────────────────────
@@ -188,10 +207,11 @@ echo -e "${GREEN}║                                              ║${NC}"
 echo -e "${GREEN}║  Frontend   → http://localhost:3000           ║${NC}"
 echo -e "${GREEN}║  Backend    → http://localhost:4000/api       ║${NC}"
 echo -e "${GREEN}║  AI Engine  → http://localhost:8000           ║${NC}"
+echo -e "${GREEN}║  Cron Job   → runs every 15 min              ║${NC}"
 echo -e "${GREEN}║                                              ║${NC}"
 echo -e "${GREEN}║  Press Ctrl+C to stop all services           ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
 # ── Tail logs ────────────────────────────────────────────────────────
-tail -f "$ROOT_DIR/.backend.log" "$ROOT_DIR/.frontend.log" "$ROOT_DIR/.aiengine.log"
+tail -f "$ROOT_DIR/.backend.log" "$ROOT_DIR/.frontend.log" "$ROOT_DIR/.aiengine.log" "$ROOT_DIR/.cronjob.log"

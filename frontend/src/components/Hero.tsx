@@ -23,10 +23,10 @@ export default function Hero() {
 
         <div className="mt-10 flex items-center justify-center gap-x-4">
           <Link
-            href="/jobs"
+            href="/dashboard"
             className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700 transition"
           >
-            Browse Jobs
+            Open Dashboard
           </Link>
           <Link
             href="/register"

@@ -2,10 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Base transitions for theme switch ───────────────── */
 html {
   scroll-behavior: smooth;
 }
 
+html,
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
+
+body {
+  @apply bg-surface-50 text-gray-900 antialiased;
+}
+
+.dark body {
+  @apply bg-surface-950 text-gray-100;
+}
+
+/* ── Scrollbar styling ───────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-gray-300;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-gray-700;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}
+
+/* ── Glass surface utility ───────────────────────────── */
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+  .dark .glass {
+    @apply bg-surface-900/70 border-white/[0.06];
+  }
+
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md rounded-2xl border border-gray-200/60 shadow-sm;
+  }
+  .dark .glass-card {
+    @apply bg-surface-850/80 border-white/[0.08] shadow-none;
+  }
+
+  /* Smooth panel entrance */
+  .panel-enter {
+    animation: panel-fade-in 0.35s ease-out both;
+  }
+
+  @keyframes panel-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(6px) scale(0.995);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+

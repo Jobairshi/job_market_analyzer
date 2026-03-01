@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+from config.settings import settings
 from shared import cache_get, cache_set, _make_key
 from shared.token_logger import log_usage
 
@@ -51,11 +52,10 @@ def analyze_skill_gap(
     if cached_val is not None:
         return cached_val
 
-    # 🔥 Use OpenAI-compatible endpoint
     llm = ChatOpenAI(
         model="gpt-4o",
-        api_key="3eNCIDa9JER314hP6B9kydsW6ZI8DwWDz7ssFtaCSXRWs9eq",  
-        base_url="https://api.ai.cc/v1",
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url,
         temperature=0.3,
         max_tokens=600,
     )

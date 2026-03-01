@@ -42,3 +42,28 @@ export class SkillGapDto {
   @MaxLength(10000)
   job_description!: string;
 }
+
+export class SkillGapMarketDto {
+  @IsString()
+  @MinLength(10)
+  @MaxLength(10000)
+  resume_text!: string;
+}
+
+export class SalaryPredictDto {
+  @IsArray()
+  @IsString({ each: true })
+  skills!: string[];
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  experience?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+}

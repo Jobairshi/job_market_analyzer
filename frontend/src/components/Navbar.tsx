@@ -14,28 +14,13 @@ export default function Navbar() {
           AI&nbsp;Jobs
         </Link>
 
-        {/* Links */}
+        {/* Right side */}
         <div className="flex items-center gap-4 text-sm font-medium">
-          <Link href="/jobs" className="text-gray-600 hover:text-indigo-600 transition">
-            Jobs
-          </Link>
-          <Link href="/dashboard" className="text-gray-600 hover:text-indigo-600 transition">
-            Dashboard
-          </Link>
-          <Link href="/resume" className="text-gray-600 hover:text-indigo-600 transition">
-            Resume Match
-          </Link>
-          <Link href="/ai" className="text-gray-600 hover:text-indigo-600 transition">
-            AI Chat
-          </Link>
-          <Link href="/recommend" className="text-gray-600 hover:text-indigo-600 transition">
-            Recommend
-          </Link>
-          <Link href="/skill-gap" className="text-gray-600 hover:text-indigo-600 transition">
-            Skill Gap
-          </Link>
-          <Link href="/map" className="text-gray-600 hover:text-indigo-600 transition">
-            Map
+          <Link
+            href="/dashboard"
+            className="rounded-lg bg-indigo-50 px-4 py-2 text-indigo-700 hover:bg-indigo-100 transition font-semibold"
+          >
+            Open Dashboard
           </Link>
 
           {user ? (

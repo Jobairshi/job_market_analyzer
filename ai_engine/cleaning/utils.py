@@ -6,7 +6,6 @@ Includes skill extraction and CSV saving helpers.
 
 import re
 import pandas as pd
-from pathlib import Path
 
 # Skills to detect — extend this list as needed
 SKILL_KEYWORDS = [
@@ -45,17 +44,7 @@ def extract_skills(text: str) -> list[str]:
     return sorted(found)
 
 
-def save_to_csv(df: pd.DataFrame, filename: str = "cleaned_jobs.csv") -> None:
-    """
-    Save a DataFrame to a CSV file.
 
-    Args:
-        df:       The DataFrame to save.
-        filename: Output file path (default: cleaned_jobs.csv).
-    """
-    output_path = Path(filename)
-    df.to_csv(output_path, index=False)
-    print(f"Saved {len(df)} jobs to '{output_path.resolve()}'")
 
 
 def save_to_json(df: pd.DataFrame, filename: str = "cleaned_jobs.json") -> None:

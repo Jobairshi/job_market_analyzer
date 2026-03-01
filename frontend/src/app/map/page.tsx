@@ -15,7 +15,7 @@ import useSWR from 'swr';
 import JobMap from '@/components/JobMap';
 import GeoControls from '@/components/GeoControls';
 import { api } from '@/lib/api';
-import type { GeoJob } from '@/lib/api';
+import type { GeoJob, SkillHeatmapPoint } from '@/lib/api';
 
 /* ── Data fetcher ──────────────────────────────────────────────── */
 
@@ -41,46 +41,83 @@ export default function MapPage() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clickMode, setClickMode] = useState(false);
+  const [skillHeatmap, setSkillHeatmap] = useState<SkillHeatmapPoint[]>([]);
+  const [skillFilterLoading, setSkillFilterLoading] = useState(false);
+
+  /* ── Helper: apply lat/lng once we have it ───────────────────── */
+  const applyLocation = useCallback(
+    async (lat: number, lng: number) => {
+      setUserLocation({ lat, lng });
+      try {
+        const res = await api.geoNearby(lat, lng, radius, 1, 100);
+        setNearbyIds(new Set(res.data.map((j) => j.id)));
+      } catch {
+        const nearSet = new Set<string>();
+        for (const j of jobs) {
+          if (haversine(lat, lng, j.latitude, j.longitude) <= radius) nearSet.add(j.id);
+        }
+        setNearbyIds(nearSet);
+      }
+      setLocating(false);
+    },
+    [radius, jobs],
+  );
+
+  /* ── IP-based fallback — proxied via local API route to avoid CORS */
+  const locateViaIP = useCallback(async () => {
+    try {
+      const res = await fetch('/api/geoip');
+      const data = await res.json();
+      // 422 with localhost_loopback = dev environment, can't geolocate loopback IP
+      if (!res.ok) {
+        const isLocalhost = data?.error === 'localhost_loopback';
+        setError(
+          isLocalhost
+            ? 'Running locally — click anywhere on the map to set your location.'
+            : 'Could not detect location — click anywhere on the map to set it manually.',
+        );
+        setClickMode(true);
+        setLocating(false);
+        return true; // handled (don't double-set error)
+      }
+      if (data.latitude && data.longitude) {
+        await applyLocation(data.latitude, data.longitude);
+        return true;
+      }
+    } catch {/* ignore */}
+    return false;
+  }, [applyLocation]);
 
   /* ── "Find Near Me" handler ───────────────────────────────────── */
   const handleFindNearMe = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser.');
-      return;
-    }
-
     setLocating(true);
     setError(null);
 
+    // If no geolocation API, go straight to IP fallback
+    if (!navigator.geolocation) {
+      locateViaIP().then((ok) => {
+        if (!ok) { setError('Could not detect location — click the map to set it manually.'); setClickMode(true); setLocating(false); }
+      });
+      return;
+    }
+
+    // Try network-based location first (no GPS = works on Mac desktops)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setUserLocation({ lat, lng });
-
-        try {
-          const res = await api.geoNearby(lat, lng, radius, 1, 100);
-          setNearbyIds(new Set(res.data.map((j) => j.id)));
-        } catch (err) {
-          console.error('Nearby search failed:', err);
-          // Fallback: client-side distance filtering
-          const nearSet = new Set<string>();
-          for (const j of jobs) {
-            const dist = haversine(lat, lng, j.latitude, j.longitude);
-            if (dist <= radius) nearSet.add(j.id);
-          }
-          setNearbyIds(nearSet);
+        await applyLocation(pos.coords.latitude, pos.coords.longitude);
+      },
+      async () => {
+        // Browser geolocation failed (e.g. macOS CoreLocation) — try IP
+        const ok = await locateViaIP();
+        if (!ok) {
+          setError('Could not detect location — click anywhere on the map to set it manually.');
+          setClickMode(true);
+          setLocating(false);
         }
-
-        setLocating(false);
       },
-      (err) => {
-        setError('Geolocation failed — click anywhere on the map to set your location instead.');
-        setClickMode(true);
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10_000 },
+      { enableHighAccuracy: false, timeout: 8_000, maximumAge: 60_000 },
     );
-  }, [radius, jobs]);
+  }, [applyLocation, locateViaIP]);
 
   /* ── Reset ────────────────────────────────────────────────────── */
   const handleReset = useCallback(() => {
@@ -88,29 +125,34 @@ export default function MapPage() {
     setNearbyIds(new Set());
     setError(null);
     setClickMode(false);
+    setSkillHeatmap([]);
+  }, []);
+
+  /* ── Skill heatmap filter ────────────────────────────────────── */
+  const handleSkillFilter = useCallback(async (skill: string) => {
+    setSkillFilterLoading(true);
+    try {
+      const data = await api.getSkillHeatmap(skill);
+      setSkillHeatmap(data);
+      // Auto-enable heatmap when skill filter is used
+      setShowHeatmap(true);
+    } catch {
+      setSkillHeatmap([]);
+    } finally {
+      setSkillFilterLoading(false);
+    }
   }, []);
 
   /* ── Map click handler (fallback for geolocation) ──────────────── */
   const handleMapClick = useCallback(
     async (lat: number, lng: number) => {
-      if (!clickMode) return; // only pick when in click mode
-      setUserLocation({ lat, lng });
+      if (!clickMode) return;
       setError(null);
       setClickMode(false);
-
-      try {
-        const res = await api.geoNearby(lat, lng, radius, 1, 100);
-        setNearbyIds(new Set(res.data.map((j) => j.id)));
-      } catch {
-        const nearSet = new Set<string>();
-        for (const j of jobs) {
-          const dist = haversine(lat, lng, j.latitude, j.longitude);
-          if (dist <= radius) nearSet.add(j.id);
-        }
-        setNearbyIds(nearSet);
-      }
+      setLocating(true);
+      await applyLocation(lat, lng);
     },
-    [clickMode, radius, jobs],
+    [clickMode, applyLocation],
   );
 
   return (
@@ -128,6 +170,9 @@ export default function MapPage() {
         locating={locating}
         jobCount={jobs.length}
         nearbyCount={nearbyIds.size}
+        onSkillFilter={handleSkillFilter}
+        skillFilterLoading={skillFilterLoading}
+        skillHeatmapCount={skillHeatmap.length}
       />
 
       {/* Error / click-mode banner */}
@@ -175,6 +220,7 @@ export default function MapPage() {
         radiusMeters={radius}
         nearbyJobIds={nearbyIds}
         onMapClick={handleMapClick}
+        skillHeatmapPoints={skillHeatmap}
       />
     </div>
   );

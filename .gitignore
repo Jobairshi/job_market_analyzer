@@ -19,6 +19,8 @@ dist/
 *.log
 .backend.log
 .frontend.log
+.aiengine.log
+.cronjob.log
 npm-debug.log*
 
 # ── Environment / Secrets ──

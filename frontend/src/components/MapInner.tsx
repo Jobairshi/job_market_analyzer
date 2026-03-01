@@ -31,7 +31,7 @@ import {
   memo,
 } from 'react';
 
-import type { GeoJob } from '@/lib/api';
+import type { GeoJob, SkillHeatmapPoint } from '@/lib/api';
 
 /* ── Fix default Leaflet icon (broken in Webpack/Next.js) ──────── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,6 +61,8 @@ export interface MapInnerProps {
   radiusMeters: number;
   nearbyJobIds: Set<string>;
   onMapClick?: (lat: number, lng: number) => void;
+  /** Skill-specific heatmap points from /ai/skill-heatmap */
+  skillHeatmapPoints?: SkillHeatmapPoint[];
 }
 
 /* ── Heatmap canvas overlay ────────────────────────────────────── */
@@ -238,6 +240,7 @@ function MapInner({
   radiusMeters,
   nearbyJobIds,
   onMapClick,
+  skillHeatmapPoints = [],
 }: MapInnerProps) {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
   const onBoundsChange = useCallback((b: L.LatLngBounds) => setBounds(b), []);
@@ -248,10 +251,21 @@ function MapInner({
     return jobs.filter((j) => bounds.contains([j.latitude, j.longitude]));
   }, [jobs, bounds, showClusters]);
 
-  // Heatmap data points
+  // Heatmap data points — use skill-specific data if available, else all jobs
   const heatPoints = useMemo<[number, number, number][]>(() => {
     if (!showHeatmap) return [];
-    // Group by rounded coords for density
+
+    // If we have skill-specific heatmap points from the API, use those
+    if (skillHeatmapPoints.length > 0) {
+      const maxW = Math.max(1, ...skillHeatmapPoints.map((p) => p.weight));
+      return skillHeatmapPoints.map((p) => [
+        p.lat,
+        p.lng,
+        Math.min(1, (p.weight / maxW) + 0.2),
+      ]);
+    }
+
+    // Default: group all jobs by rounded coords for density
     const density = new Map<string, { lat: number; lng: number; count: number }>();
     for (const j of jobs) {
       const key = `${j.latitude.toFixed(2)},${j.longitude.toFixed(2)}`;
@@ -268,7 +282,7 @@ function MapInner({
       d.lng,
       Math.min(1, d.count / maxCount + 0.2),
     ]);
-  }, [jobs, showHeatmap]);
+  }, [jobs, showHeatmap, skillHeatmapPoints]);
 
   // Fly target
   const flyTarget = useMemo<{ center: [number, number]; zoom: number } | null>(() => {

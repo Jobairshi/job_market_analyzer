@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 /**
  * GeoControls — floating control panel for the map page.
  *
@@ -7,6 +9,7 @@
  *  • Toggle heatmap
  *  • "Jobs Near Me" button
  *  • Radius selector
+ *  • Skill-based heatmap filter
  *  • Reset view
  */
 
@@ -22,6 +25,10 @@ interface GeoControlsProps {
   locating: boolean;
   jobCount: number;
   nearbyCount: number;
+  /** Skill heatmap filter */
+  onSkillFilter?: (skill: string) => void;
+  skillFilterLoading?: boolean;
+  skillHeatmapCount?: number;
 }
 
 const RADII = [
@@ -43,7 +50,11 @@ export default function GeoControls({
   locating,
   jobCount,
   nearbyCount,
+  onSkillFilter,
+  skillFilterLoading,
+  skillHeatmapCount,
 }: GeoControlsProps) {
+  const [skillInput, setSkillInput] = useState('');
   return (
     <div className="absolute left-4 top-4 z-[1000] w-64 rounded-xl border border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur">
       <h3 className="mb-3 text-sm font-bold text-gray-800">Map Controls</h3>
@@ -133,6 +144,41 @@ export default function GeoControls({
           <>📍 Find Jobs Near Me</>
         )}
       </button>
+
+      {/* Skill Heatmap Filter */}
+      {onSkillFilter && (
+        <div className="mb-3">
+          <span className="mb-1 block text-xs font-medium text-gray-500">
+            Skill Heatmap
+          </span>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={skillInput}
+              onChange={(e) => setSkillInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && skillInput.trim()) {
+                  onSkillFilter(skillInput.trim());
+                }
+              }}
+              placeholder="e.g. python"
+              className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+            <button
+              onClick={() => skillInput.trim() && onSkillFilter(skillInput.trim())}
+              disabled={skillFilterLoading || !skillInput.trim()}
+              className="shrink-0 rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+            >
+              {skillFilterLoading ? '…' : 'Go'}
+            </button>
+          </div>
+          {skillHeatmapCount !== undefined && skillHeatmapCount > 0 && (
+            <p className="mt-1 text-xs text-indigo-600 font-medium">
+              {skillHeatmapCount} matching jobs
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Reset */}
       <button

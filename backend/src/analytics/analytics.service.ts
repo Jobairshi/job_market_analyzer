@@ -1,6 +1,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '../config/supabase.module';
+import { CacheService } from '../common/cache.service';
 import {
   AnalyticsFilterDto,
   SummaryResponse,
@@ -16,25 +17,21 @@ import {
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
-
-  /** In-memory cache: key → { data, expiresAt } */
-  private cache = new Map<string, { data: unknown; expiresAt: number }>();
-  private readonly TTL_MS = 60_000; // 60-second cache
+  private readonly TTL = 60; // 60-second cache (Redis, in seconds)
 
   constructor(
     @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
+    private readonly cache: CacheService,
   ) {}
 
   /* ───────────────────────────── helpers ───────────────────────────── */
 
-  /** Simple TTL cache wrapper. */
+  /** Redis-backed TTL cache wrapper. */
   private async cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-    const entry = this.cache.get(key);
-    if (entry && Date.now() < entry.expiresAt) {
-      return entry.data as T;
-    }
+    const hit = await this.cache.get<T>(key);
+    if (hit !== null) return hit;
     const data = await fetcher();
-    this.cache.set(key, { data, expiresAt: Date.now() + this.TTL_MS });
+    await this.cache.set(key, data, this.TTL);
     return data;
   }
 

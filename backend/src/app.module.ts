@@ -8,11 +8,13 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ResumeModule } from './resume/resume.module';
 import { AIModule } from './ai/ai.module';
 import { GeoModule } from './geo/geo.module';
+import { RedisModule } from './config/redis.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 30 }]),
+    RedisModule,
     AuthModule,
     JobsModule,
     AnalyticsModule,

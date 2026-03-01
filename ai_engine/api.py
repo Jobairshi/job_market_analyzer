@@ -29,6 +29,13 @@ from intelligence.rag_service import query_intelligence
 from intelligence.match_explainer import explain_top_matches
 from recommendation.recommendation_service import get_recommendations
 from analysis.skill_gap import analyze_skill_gap
+from ai_modules.skill_gap import analyze_skill_gap_market
+from ml.salary_model import predict_salary, train_salary_model
+from insights.generate_insights import (
+    generate_and_store_insights,
+    get_latest_insights,
+    detect_trends,
+)
 from shared.rate_limiter import check_rate_limit
 
 logging.basicConfig(
@@ -76,6 +83,15 @@ class RecommendRequest(BaseModel):
 class SkillGapRequest(BaseModel):
     resume_text: str = Field(..., min_length=10, max_length=10000)
     job_description: str = Field(..., min_length=10, max_length=10000)
+
+class SkillGapMarketRequest(BaseModel):
+    resume_text: str = Field(..., min_length=10, max_length=10000)
+
+class SalaryPredictRequest(BaseModel):
+    skills: list[str] = Field(..., min_length=1)
+    location: str = Field(default="remote")
+    experience: str = Field(default="mid")
+    title: str = Field(default="")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────
@@ -241,4 +257,110 @@ async def ai_skill_gap(request: Request, body: SkillGapRequest):
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         log.error("Skill gap analysis failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Enhanced Skill Gap (market-based) ────────────────────────────────
+
+@app.post("/ai/skill-gap-market")
+async def ai_skill_gap_market(request: Request, body: SkillGapMarketRequest):
+    """
+    Enhanced skill gap: compare resume against real market demand,
+    generate personalized upskilling roadmap.
+    """
+    _check_limit(request, "ai_skill_gap_market")
+    try:
+        result = analyze_skill_gap_market(body.resume_text)
+        return result
+    except Exception as exc:
+        log.error("Market skill gap analysis failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Salary Prediction ───────────────────────────────────────────────
+
+@app.post("/ai/predict-salary")
+async def ai_predict_salary(request: Request, body: SalaryPredictRequest):
+    """Predict salary range based on skills, location, and experience."""
+    _check_limit(request, "ai_predict_salary")
+    try:
+        result = predict_salary(
+            skills=body.skills,
+            location=body.location,
+            experience=body.experience,
+            title=body.title,
+        )
+        return result
+    except Exception as exc:
+        log.error("Salary prediction failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/ai/train-salary-model")
+async def ai_train_salary(request: Request):
+    """Retrain the salary prediction model with latest data."""
+    _check_limit(request, "ai_train_salary")
+    try:
+        result = train_salary_model()
+        return result
+    except Exception as exc:
+        log.error("Salary model training failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Market Insights ──────────────────────────────────────────────────
+
+@app.get("/ai/insights")
+async def ai_insights(request: Request, limit: int = Query(default=10, ge=1, le=50)):
+    """Get the latest AI-generated market insights."""
+    try:
+        return {"insights": get_latest_insights(limit)}
+    except Exception as exc:
+        log.error("Insights fetch failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/ai/insights/trends")
+async def ai_trends(request: Request):
+    """Get current market trend data (24h vs 7d)."""
+    try:
+        return detect_trends()
+    except Exception as exc:
+        log.error("Trend detection failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/ai/insights/generate")
+async def ai_generate_insights(request: Request):
+    """Manually trigger insight generation (normally runs hourly via cron)."""
+    _check_limit(request, "ai_generate_insights")
+    try:
+        result = generate_and_store_insights()
+        return result
+    except Exception as exc:
+        log.error("Insight generation failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ── Skill Heatmap (geo data for a specific skill) ───────────────────
+
+@app.get("/ai/skill-heatmap")
+async def ai_skill_heatmap(request: Request, skill: str = Query(..., min_length=1)):
+    """Get geo coordinates of jobs that require a specific skill."""
+    try:
+        from db.supabase_client import get_client
+        sb = get_client()
+        resp = (
+            sb.table("jobs")
+            .select("id, title, company, location, latitude, longitude, cleaned_tags")
+            .contains("cleaned_tags", [skill.lower()])
+            .filter("latitude", "not.is", "null")
+            .filter("longitude", "not.is", "null")
+            .limit(2000)
+            .execute()
+        )
+        jobs = resp.data or []
+        return {"skill": skill, "data": jobs, "total": len(jobs)}
+    except Exception as exc:
+        log.error("Skill heatmap failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))

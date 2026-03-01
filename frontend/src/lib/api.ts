@@ -166,6 +166,45 @@ export const api = {
       body: JSON.stringify({ resume_text: resumeText, job_description: jobDescription }),
     }),
 
+  /* ── NEW: Market Skill Gap ─────────────────────────── */
+
+  aiSkillGapMarket: (resumeText: string) =>
+    request<AISkillGapMarketResponse>('/ai/skill-gap-market', {
+      method: 'POST',
+      body: JSON.stringify({ resume_text: resumeText }),
+    }),
+
+  /* ── NEW: Salary Prediction ────────────────────────── */
+
+  aiPredictSalary: (body: {
+    skills: string[];
+    location?: string;
+    experience?: string;
+    title?: string;
+  }) =>
+    request<SalaryPredictResponse>('/ai/predict-salary', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  /* ── NEW: Market Insights ──────────────────────────── */
+
+  getInsights: async (limit = 10): Promise<MarketInsight[]> => {
+    const res = await request<{ insights: MarketInsight[] }>(`/ai/insights?limit=${limit}`);
+    return res.insights ?? [];
+  },
+
+  getTrends: () =>
+    request<TrendsResponse>('/ai/insights/trends'),
+
+  generateInsights: () =>
+    request<{ status: string }>('/ai/insights/generate', { method: 'POST' }),
+
+  /* ── NEW: Skill Heatmap ────────────────────────────── */
+
+  getSkillHeatmap: (skill: string) =>
+    request<SkillHeatmapPoint[]>(`/ai/skill-heatmap?skill=${encodeURIComponent(skill)}`),
+
   /* ── Geo ──────────────────────────────────────────────── */
 
   geoNearby: (lat: number, lng: number, radius = 50000, page = 1, limit = 20) =>
@@ -356,4 +395,72 @@ export interface GeoStatsItem {
 export interface GeoStatsResponse {
   data: GeoStatsItem[];
   total: number;
+}
+
+/* ── NEW: Market Skill Gap types ───────────────────────── */
+
+export interface AISkillGapMarketResponse {
+  match_percentage: number;
+  your_skills: string[];
+  missing_skills: string[];
+  improvement_priority: Array<{
+    skill: string;
+    demand_score: number;
+    priority: string;
+  }>;
+  roadmap: string;
+}
+
+/* ── NEW: Salary Prediction types ──────────────────────── */
+
+export interface SalaryPredictResponse {
+  predicted_salary: number;
+  salary_range: { low: number; high: number };
+  confidence_score: number;
+  factors: Record<string, string>;
+}
+
+/* ── NEW: Market Insight types ─────────────────────────── */
+
+export interface MarketInsight {
+  id: string;
+  title: string;
+  text: string;
+  insight_type: string;
+  severity: string;
+  market_summary: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface TrendSkill {
+  skill: string;
+  count_24h: number;
+  avg_7d: number;
+  growth_pct: number;
+}
+
+export interface LocationSurge {
+  location: string;
+  count_24h: number;
+  avg_7d: number;
+  growth_pct: number;
+}
+
+export interface TrendsResponse {
+  trending_skills: TrendSkill[];
+  declining_skills: TrendSkill[];
+  location_surges: LocationSurge[];
+  jobs_24h: number;
+  jobs_7d: number;
+  timestamp: string;
+}
+
+/* ── NEW: Skill Heatmap types ──────────────────────────── */
+
+export interface SkillHeatmapPoint {
+  lat: number;
+  lng: number;
+  title: string;
+  company: string;
+  weight: number;
 }
