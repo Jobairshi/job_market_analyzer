@@ -10,11 +10,10 @@ import json
 import logging
 from typing import Any
 
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
-from config.settings import settings
 from shared import cache_get, cache_set, _make_key
 from shared.token_logger import log_usage
 
@@ -24,7 +23,9 @@ _SYSTEM = (
     "You are a career advisor. Compare the candidate's resume against the "
     "target job description. Identify missing skills and suggest a learning path.\n\n"
     "OUTPUT FORMAT (strict JSON, no markdown):\n"
-    '{{"missing_skills":["skill1","skill2"],"learning_path":[{{"skill":"...","resource":"...","type":"course|tool|certification"}}],"summary":"..."}}'
+    '{{"missing_skills":["skill1","skill2"],'
+    '"learning_path":[{"skill":"...","resource":"...","type":"course|tool|certification"}],'
+    '"summary":"..."}}'
 )
 
 _PROMPT = ChatPromptTemplate.from_messages([
@@ -40,13 +41,6 @@ def analyze_skill_gap(
     resume_text: str,
     job_description: str,
 ) -> dict[str, Any]:
-    """
-    Compare resume against a job description and return skill gap analysis.
-
-    Returns dict with: missing_skills, learning_path, summary.
-    """
-    if not settings.azure_openai_api_key:
-        raise ValueError("AZURE_OPENAI_API_KEY is not configured.")
 
     # Truncate inputs for token efficiency
     resume_short = resume_text[:1500]
@@ -57,14 +51,15 @@ def analyze_skill_gap(
     if cached_val is not None:
         return cached_val
 
-    llm = AzureChatOpenAI(
-        azure_deployment=settings.azure_deployment_name,
-        api_key=settings.azure_openai_api_key,
-        azure_endpoint=settings.azure_openai_endpoint,
-        api_version=settings.azure_openai_api_version,
+    # 🔥 Use OpenAI-compatible endpoint
+    llm = ChatOpenAI(
+        model="gpt-4o",
+        api_key="3eNCIDa9JER314hP6B9kydsW6ZI8DwWDz7ssFtaCSXRWs9eq",  
+        base_url="https://api.ai.cc/v1",
         temperature=0.3,
         max_tokens=600,
     )
+
     chain = _PROMPT | llm | JsonOutputParser()
 
     result = chain.invoke({

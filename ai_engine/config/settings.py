@@ -22,6 +22,9 @@ load_dotenv(_ENV_PATH)
 class Settings:
     supabase_url: str
     supabase_service_role_key: str
+    # OpenAI-compatible API
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
     # Azure OpenAI
     azure_openai_api_key: str = ""
     azure_openai_endpoint: str = ""
@@ -47,6 +50,8 @@ def _require(name: str) -> str:
 settings = Settings(
     supabase_url=_require("SUPABASE_URL"),
     supabase_service_role_key=_require("SUPABASE_SERVICE_ROLE_KEY"),
+    openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+    openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY", ""),
     azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
     azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2025-01-01-preview"),

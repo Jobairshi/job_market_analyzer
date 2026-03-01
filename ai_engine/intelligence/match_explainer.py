@@ -3,16 +3,17 @@
 Resume-Aware Matching with AI Explanation.
 
 After vector search retrieves top matches, uses OpenAI to explain
-*why* each job is a good match and what skills are missing.
+why each job is a good match and what skills are missing.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
@@ -26,7 +27,11 @@ _SYSTEM = (
     "You are a job matching expert. Given a resume excerpt and a job listing, "
     "explain the match quality concisely.\n\n"
     "OUTPUT FORMAT (strict JSON, no markdown):\n"
-    '{{"job_title":"...","match_score":<0-1 float>,"why_match":"...","missing_skills":["..."],"improvement_suggestions":["..."]}}'
+    '{{"job_title":"...",'
+    '"match_score":<0-1 float>,'
+    '"why_match":"...",'
+    '"missing_skills":["..."],'
+    '"improvement_suggestions":["..."]}}'
 )
 
 _PROMPT = ChatPromptTemplate.from_messages([
@@ -41,14 +46,26 @@ _PROMPT = ChatPromptTemplate.from_messages([
 ])
 
 
+def _get_llm() -> ChatOpenAI:
+    """
+    Centralized LLM config for easier maintenance.
+    """
+    return ChatOpenAI(
+        model="gpt-4o",
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url,
+        temperature=0.3,
+        max_tokens=400,
+    )
+
+
 def explain_match(
     resume_text: str,
     job: dict[str, Any],
 ) -> dict[str, Any]:
     """Generate AI explanation for a single resume-job match."""
-    if not settings.azure_openai_api_key:
-        raise ValueError("AZURE_OPENAI_API_KEY is not configured.")
 
+    
     title = job.get("title", "")
     company = job.get("company", "Unknown")
 
@@ -57,14 +74,7 @@ def explain_match(
     if cached_val is not None:
         return cached_val
 
-    llm = AzureChatOpenAI(
-        azure_deployment=settings.azure_deployment_name,
-        api_key=settings.azure_openai_api_key,
-        azure_endpoint=settings.azure_openai_endpoint,
-        api_version=settings.azure_openai_api_version,
-        temperature=0.3,
-        max_tokens=400,
-    )
+    llm = _get_llm()
     chain = _PROMPT | llm | JsonOutputParser()
 
     desc = (job.get("description") or "")[:800]
@@ -99,6 +109,7 @@ def explain_top_matches(
     Only explains top `max_explain` to control cost.
     """
     explained = []
+
     for job in matched_jobs[:max_explain]:
         try:
             explanation = explain_match(resume_text, job)
@@ -107,7 +118,7 @@ def explain_top_matches(
             log.error("Failed to explain match for '%s': %s", job.get("title"), exc)
             explained.append({**job, "explanation": None})
 
-    # Append remaining jobs without explanation
+    # Remaining jobs without explanation
     for job in matched_jobs[max_explain:]:
         explained.append({**job, "explanation": None})
 
